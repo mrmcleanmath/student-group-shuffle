@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Student Group Shuffle</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  :root{
+    --ink:#0f1226; --muted:#9fb0d8; --line:#243056; --bg:#0b1026;
+    --card:#0e1533; --glow:#7c3aed; --glow2:#22d3ee;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; color:#e6ecff;
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background: radial-gradient(1200px 600px at 20% -20%, #1a2150 0%, transparent 60%),
+                radial-gradient(900px 500px at 120% 20%, #093a54 0%, transparent 50%),
+                #060b1a;
+    overflow-x:hidden;
+  }
+
+  /* Header */
+  .hero{
+    position:relative; overflow:hidden; border-bottom:1px solid #1a2450;
+    background: linear-gradient(135deg,#111b3d 0%, #0d2546 50%, #112a55 100%);
+  }
+  .hero::before{
+    content:""; position:absolute; inset:0;
+    background-image: repeating-linear-gradient(0deg, rgba(255,255,255,.05) 0, rgba(255,255,255,.05) 1px, transparent 1px, transparent 3px);
+    mix-blend-mode: overlay; pointer-events:none; opacity:.15;
+    animation: flicker 4s linear infinite;
+  }
+  @keyframes flicker{ 0%,100%{opacity:.12} 50%{opacity:.18} }
+  .neon-title{
+    margin:0; font-size:34px; letter-spacing:.02em; padding:18px 16px;
+    text-shadow: 0 0 10px rgba(124,58,237,.8), 0 0 22px rgba(34,211,238,.6);
+    background: linear-gradient(90deg,#22d3ee,#7c3aed,#22d3ee);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    animation: hue 6s linear infinite;
+  }
+  @keyframes hue { to { filter:hue-rotate(360deg); } }
+
+  .wrap{max-width:1200px;margin:0 auto;padding:18px 16px}
+
+  .grid{display:grid;grid-template-columns:1fr;gap:18px}
+  @media(min-width:1024px){.grid{grid-template-columns:1fr 2fr}}
+
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:16px;
+    box-shadow:0 0 0 1px rgba(124,58,237,.15), 0 20px 60px rgba(0,0,0,.35);
+  }
+  .pad{padding:16px}
+
+  textarea,input,button{font:inherit}
+  textarea{
+    width:100%;height:240px;padding:10px;border:1px solid #2c3a6f;border-radius:12px;background:#0a1638;color:#e6ecff
+  }
+  textarea:focus,input:focus{
+    outline:none; border-color:#5b94ff; box-shadow:0 0 0 2px rgba(91,148,255,.25)
+  }
+  input{
+    width:100%;padding:8px 10px;border:1px solid #2c3a6f;border-radius:12px;background:#0a1638;color:#e6ecff
+  }
+  label{font-size:13px;font-weight:700;display:block;margin:10px 0 6px;color:#c9d4ff}
+  small.hint{color:#9fb0d8;display:block;margin-top:4px}
+
+  /* Buttons */
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;padding:12px 16px;border-radius:12px;
+    border:1px solid #2c3a6f; background:#0f1a44; color:#e6ecff; cursor:pointer;
+    transition: transform .06s ease, box-shadow .2s ease, filter .2s ease, background .2s ease;
+    font-weight:700;
+  }
+  .btn.primary{
+    background: radial-gradient(100% 100% at 50% 0%, #7c3aed 0%, #53389e 60%, #312e81 100%);
+    box-shadow: 0 0 0 2px rgba(124,58,237,.3), 0 10px 30px rgba(124,58,237,.45), 0 0 50px rgba(34,211,238,.2) inset;
+    border-color: transparent;
+  }
+  .btn:hover{filter:brightness(1.05)}
+  .btn:active{transform:translateY(1px)}
+  .btnbar{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .chip{padding:4px 10px;border-radius:999px;border:1px solid #2c3a6f;background:#0f1a44;font-size:12px;cursor:pointer}
+  .chip.active{background:#1b2a6b;border-color:#5b94ff;color:#dbe5ff}
+
+  /* Mix stage */
+  .mix{position:relative;height:360px;overflow:hidden;border-radius:16px;background:
+       radial-gradient(600px 300px at 60% -10%, rgba(124,58,237,.3), transparent 60%),
+       radial-gradient(600px 300px at 40% 110%, rgba(34,211,238,.25), transparent 60%),
+       #0b1333;}
+  .rays{
+    position:absolute; inset:-40% -10%;
+    background: repeating-conic-gradient(from 0deg, rgba(124,58,237,.12) 0 15deg, rgba(34,211,238,.12) 15deg 30deg, transparent 30deg 45deg);
+    animation: spin 12s linear infinite; filter: blur(6px); opacity:.45; pointer-events:none;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  .chip-float{
+    position:absolute; border:1px solid #374585; background:#0e1b4a; color:#e6ecff;
+    border-radius:999px; padding:6px 12px; font-size:12px;
+    box-shadow:0 8px 24px rgba(0,0,0,.35), 0 0 18px rgba(124,58,237,.35);
+    transition: transform 1s cubic-bezier(.22,1,.36,1), left 1s cubic-bezier(.22,1,.36,1), top 1s cubic-bezier(.22,1,.36,1), opacity .5s ease;
+    will-change:transform,left,top; opacity:.95;
+  }
+
+  /* Groups grid */
+  .groups{display:grid;grid-template-columns:1fr;gap:18px}
+  @media(min-width:700px){.groups{grid-template-columns:1fr 1fr}}
+  @media(min-width:1100px){.groups{grid-template-columns:1fr 1fr 1fr}}
+
+  .group{
+    border:1px solid #2c3a6f; border-radius:16px; padding:16px; background:#0b163f;
+    opacity:0; transform:translateY(8px) scale(.98);
+    animation: reveal .55s cubic-bezier(.22,1,.36,1) forwards;
+    box-shadow:0 0 32px rgba(124,58,237,.18), inset 0 0 0 1px rgba(34,211,238,.12);
+  }
+  @keyframes reveal{to{opacity:1;transform:translateY(0) scale(1)}}
+
+  /* BIGGER, BOLDER text for projection */
+  .group h3{
+    margin:0 0 10px;
+    font-size: clamp(22px, 2.6vw, 28px);
+    font-weight:900;
+    letter-spacing:0.5px;
+    color:#eaf1ff;
+    text-shadow: 0 0 10px rgba(124,58,237,.6), 0 0 18px rgba(34,211,238,.35);
+    display:flex; align-items:center; gap:10px;
+  }
+  .tag{
+    display:inline-block; padding:4px 12px; border-radius:999px;
+    font-size: clamp(12px, 1.6vw, 14px);
+    font-weight:900; color:#001; letter-spacing:.5px;
+  }
+  .tag-1{background:linear-gradient(90deg,#22d3ee,#a78bfa)}
+  .tag-2{background:linear-gradient(90deg,#34d399,#22c55e)}
+  .tag-3{background:linear-gradient(90deg,#f59e0b,#ef4444)}
+  .tag-4{background:linear-gradient(90deg,#60a5fa,#7c3aed)}
+  .tag-5{background:linear-gradient(90deg,#f472b6,#fb7185)}
+  .tag-6{background:linear-gradient(90deg,#a3e635,#4ade80)}
+
+  .badge{
+    display:inline-block;font-size: clamp(12px, 1.6vw, 14px);
+    padding:3px 8px;border-radius:8px;border:1px solid #2c3a6f;background:#0f1a44;color:#dbe5ff;font-weight:800
+  }
+
+  /* Make names large and high-contrast */
+  ol{
+    margin:8px 0 0; padding-left:22px;
+    font-size: clamp(18px, 2.2vw, 24px);
+    line-height:1.35; font-weight:800; color:#f4f7ff;
+    text-shadow: 0 0 6px rgba(34,211,238,.25);
+  }
+  ol li{ padding:4px 0 }
+
+  .meta{color:#a7b3d9;font-size:14px;margin:6px 0 12px}
+
+  .empty{border:2px dashed #2c3a6f;color:#89a0da;text-align:center;padding:36px;border-radius:16px;background:rgba(11,19,63,.4)}
+
+  .toolbar{display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-bottom:8px}
+  .toggle{display:flex;align-items:center;gap:6px;font-size:12px;color:#a7b3d9}
+  .toggle input{width:auto}
+
+  .relative{position:relative}
+
+  @media print{.no-print{display:none !important} body{background:#fff;color:#000} .card{box-shadow:none;border:1px solid #ddd} .wrap{max-width:none;padding:0}}
+</style>
+</head>
+<body>
+
+  <div class="hero">
+    <div class="wrap">
+      <h1 class="neon-title">Student Group Shuffle</h1>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="grid">
+      <!-- LEFT: Controls -->
+      <div class="card pad">
+        <label>Student names</label>
+        <textarea id="names" placeholder="One per line, or separated by commas/semicolons/tabs"></textarea>
+
+        <div class="btnbar">
+          <button class="btn" id="demo">Load demo</button>
+          <button class="btn" id="clear">Clear</button>
+        </div>
+
+        <!-- Always 'By number of groups (contiguous)' -->
+        <label>Number of groups</label>
+        <input type="number" id="groupsCount" min="1" value="3" />
+        <div class="chips" id="groupsCountQuick"></div>
+
+        <label>Optional seed (for reproducible shuffle)</label>
+        <input type="text" id="seed" placeholder="Type any word or number" />
+        <small class="hint">Enter the same seed again to reproduce the same shuffle.</small>
+
+        <div class="btnbar">
+          <button class="btn primary" id="shuffle">Shuffle & Group</button>
+          <button class="btn no-print" id="printBtn">Print</button>
+        </div>
+      </div>
+
+      <!-- RIGHT: Output (confetti constrained here) -->
+      <div class="card pad relative">
+        <div class="toolbar no-print">
+          <label class="toggle"><input type="checkbox" id="arcadeToggle" checked />Arcade mode</label>
+          <label class="toggle"><input type="checkbox" id="soundToggle" checked />Sound</label>
+        </div>
+
+        <div id="mixStage" class="mix" style="display:none;margin-top:6px;">
+          <div class="rays"></div>
+        </div>
+
+        <div id="results" style="display:none;margin-top:8px;">
+          <div class="meta" id="summary"></div>
+          <div class="groups" id="groups"></div>
+        </div>
+
+        <div id="empty" class="empty" style="margin-top:8px;">
+          Paste names on the left, choose your grouping, then click <strong>Shuffle & Group</strong>.
+        </div>
+
+        <canvas id="confetti" width="10" height="10" style="position:absolute; inset:0; pointer-events:none; display:none;"></canvas>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ---------- Utilities ----------
+  function splitNames(raw){
+    if(!raw) return [];
+    // keep robust splitting (Windows/Mac/Unicode breaks + commas/semicolons/tabs)
+    raw = raw.replace(/\u00A0/g," ");
+    return raw.split(/\r\n|\n|\r|\u2028|\u2029|,|;|\t/g).map(s=>s.trim()).filter(Boolean);
+  }
+  // Seeded PRNG
+  function mulberry32(a){return function(){var t=a+=0x6d2b79f5;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296;}}
+  function hashSeed(str){ if(str==null||str==="")return null; let h=1779033703^str.length; for(let i=0;i<str.length;i++){h=Math.imul(h^str.charCodeAt(i),3432918353); h=(h<<13)|(h>>>19);} return h>>>0; }
+  function getRng(seed){ const h=hashSeed(seed); return h==null ? Math.random : mulberry32(h); }
+  function shuffleArray(arr,rng){ const a=arr.slice(); const R=rng||Math.random; for(let i=a.length-1;i>0;i--){ const j=Math.floor(R()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+  // Contiguous slice (preserve order)
+  function sliceIntoKContiguous(arr,k){
+    const n=arr.length; const g=Math.max(1,Math.min(n,Math.floor(k||1)));
+    const size=Math.ceil(n/g);
+    const out=[]; for(let i=0;i<n;i+=size) out.push(arr.slice(i,i+size));
+    while(out.length<g) out.push([]);
+    return out;
+  }
+
+  // ---------- Confetti (constrained to right card) ----------
+  const confettiCanvas=document.getElementById("confetti"); const cctx=confettiCanvas.getContext("2d");
+  let confettiTimer=null, confettiParts=[];
+  function launchConfetti(intensity=220){
+    const box=confettiCanvas.parentElement.getBoundingClientRect();
+    confettiCanvas.width=box.width; confettiCanvas.height=box.height;
+    confettiCanvas.style.display="block";
+    const palette=["#22d3ee","#7c3aed","#f59e0b","#22c55e","#60a5fa","#fb7185"];
+    confettiParts = Array.from({length:intensity},()=>({
+      x: Math.random()*box.width,
+      y: -10 - Math.random()*120,
+      w: 6+Math.random()*7,
+      h: 10+Math.random()*14,
+      c: palette[Math.floor(Math.random()*palette.length)],
+      vx: -2+Math.random()*4,
+      vy: 2+Math.random()*5,
+      r: Math.random()*360,
+      vr: -6+Math.random()*12
+    }));
+    cancelAnimationFrame(confettiTimer);
+    tick();
+    setTimeout(()=>confettiCanvas.style.display="none", 2000);
+  }
+  function tick(){
+    cctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height);
+    confettiParts.forEach(p=>{
+      p.x+=p.vx; p.y+=p.vy; p.vy+=0.06; p.r+=p.vr;
+      cctx.save(); cctx.translate(p.x,p.y); cctx.rotate(p.r*Math.PI/180);
+      cctx.fillStyle=p.c; cctx.fillRect(-p.w/2,-p.h/2,p.w,p.h); cctx.restore();
+    });
+    confettiParts = confettiParts.filter(p=>p.y<confettiCanvas.height+50);
+    if(confettiParts.length) confettiTimer=requestAnimationFrame(tick);
+  }
+
+  // ---------- Sound ----------
+  let audioCtx=null;
+  function ensureAudio(){ audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
+
+  // MIX sound: filtered-noise whoosh (the one you liked)
+  function whoosh(){
+    const ctx=ensureAudio(); const now=ctx.currentTime; const dur=0.7;
+    const buffer=ctx.createBuffer(1, ctx.sampleRate*dur, ctx.sampleRate);
+    const data=buffer.getChannelData(0); for(let i=0;i<data.length;i++){ data[i]=Math.random()*2-1; }
+    const src=ctx.createBufferSource(); src.buffer=buffer;
+    const filter=ctx.createBiquadFilter(); filter.type="bandpass";
+    filter.frequency.setValueAtTime(300, now);
+    filter.frequency.exponentialRampToValueAtTime(2000, now+dur);
+    const gain=ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.6, now+0.08);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now+dur);
+    src.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+    src.start(now); src.stop(now+dur);
+  }
+
+  // Coin “win” sound after groups appear
+  function coin(){
+    const ctx=ensureAudio(); const n=ctx.currentTime;
+    function beep(f,tStart,len,vol,type="sine"){
+      const o=ctx.createOscillator(); const g=ctx.createGain();
+      o.type=type; o.frequency.value=f; o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(0,tStart); g.gain.linearRampToValueAtTime(vol,tStart+.01); g.gain.exponentialRampToValueAtTime(0.0001,tStart+len);
+      o.start(tStart); o.stop(tStart+len);
+    }
+    beep(880, n+0.00, .15, .25,"sine");
+    beep(1320,n+0.07, .15, .22,"sine");
+    beep(1760,n+0.14, .13, .20,"sine");
+  }
+
+  // ---------- DOM refs ----------
+  const elNames=document.getElementById("names");
+  const elGroupsCount=document.getElementById("groupsCount");
+  const elGroupsCountQuick=document.getElementById("groupsCountQuick");
+  const elSeed=document.getElementById("seed");
+  const elShuffle=document.getElementById("shuffle");
+  const elPrint=document.getElementById("printBtn");
+  const elDemo=document.getElementById("demo");
+  const elClear=document.getElementById("clear");
+
+  const elMix=document.getElementById("mixStage");
+  const elEmpty=document.getElementById("empty");
+  const elResults=document.getElementById("results");
+  const elSummary=document.getElementById("summary");
+  const elGroupsOut=document.getElementById("groups");
+  const elArcade=document.getElementById("arcadeToggle");
+  const elSound=document.getElementById("soundToggle");
+
+  // Quick-pick chips for number of groups
+  [2,3,4,5,6,7,8,9,10].forEach(n=>{
+    const b=document.createElement("button"); b.className="chip"; b.textContent=n;
+    b.addEventListener("click",()=>{elGroupsCount.value=n; updateChips();});
+    elGroupsCountQuick.appendChild(b);
+  });
+  function updateChips(){
+    [...elGroupsCountQuick.children].forEach(ch=>ch.classList.toggle("active", ch.textContent==elGroupsCount.value));
+  }
+  updateChips();
+
+  // Demo & Clear
+  elDemo.addEventListener("click",()=>{
+    const demo=["Sam","Bobby","Kristen","Tanaja","Jennifer","Gabby","Prince","Walter","Brian","Larry","Craig","John","Ben","Trolus","Shannon"].join("\n");
+    elNames.value=demo;
+  });
+  elClear.addEventListener("click",()=>{
+    elNames.value=""; elSeed.value="";
+    elGroupsOut.innerHTML=""; elSummary.textContent="";
+    elResults.style.display="none"; elEmpty.style.display="";
+    elMix.style.display="none";
+    elShuffle.textContent="Shuffle & Group";
+  });
+
+  // Print
+  elPrint.addEventListener("click",()=>window.print());
+
+  // Mixing animation
+  function showMix(names){
+    elEmpty.style.display="none"; elResults.style.display="none"; elMix.style.display="";
+    elMix.innerHTML='<div class="rays"></div>';
+    const W=elMix.clientWidth, H=elMix.clientHeight;
+    names.forEach((name,i)=>{
+      const chip=document.createElement("div");
+      chip.className="chip-float";
+      chip.textContent=name;
+      const x1=10+Math.random()*(W-140), y1=10+Math.random()*(H-60);
+      chip.style.left=x1+"px"; chip.style.top=y1+"px";
+      chip.style.transform=`translateZ(0) scale(${0.95+Math.random()*0.12}) rotate(${(Math.random()*16-8).toFixed(2)}deg)`;
+      chip.style.transitionDelay=(i%8)*22+"ms";
+      elMix.appendChild(chip);
+      requestAnimationFrame(()=>{
+        const x2=10+Math.random()*(W-140), y2=10+Math.random()*(H-60);
+        chip.style.left=x2+"px"; chip.style.top=y2+"px";
+        chip.style.transform=`translateZ(0) scale(${0.95+Math.random()*0.12}) rotate(${(Math.random()*16-8).toFixed(2)}deg)`;
+      });
+    });
+  }
+
+  function tagClass(idx){
+    const arr=["tag-1","tag-2","tag-3","tag-4","tag-5","tag-6"]; return arr[idx % arr.length];
+  }
+
+  function renderResults(totalCount,groups){
+    elMix.style.display="none"; elResults.style.display="";
+    const sizes=groups.map(g=>g.length);
+    const min=sizes.length?Math.min(...sizes):0, max=sizes.length?Math.max(...sizes):0;
+    elSummary.textContent=`${totalCount} students → ${groups.length} groups (sizes ${min}-${max})`;
+
+    elGroupsOut.innerHTML="";
+    groups.forEach((g,i)=>{
+      const box=document.createElement("div");
+      box.className="group"; box.style.animationDelay=(i*90)+"ms";
+      const header=document.createElement("div");
+      header.style.display="flex"; header.style.alignItems="center"; header.style.justifyContent="space-between";
+      const h=document.createElement("h3");
+      const tag=document.createElement("span"); tag.className="tag "+tagClass(i); tag.textContent=`GROUP ${i+1}`;
+      h.appendChild(tag);
+      const badge=document.createElement("span"); badge.className="badge"; badge.textContent=`${g.length}`;
+      header.appendChild(h); header.appendChild(badge);
+      const ol=document.createElement("ol");
+      g.forEach(n=>{const li=document.createElement("li"); li.textContent=n; ol.appendChild(li);});
+      box.appendChild(header); box.appendChild(ol);
+      elGroupsOut.appendChild(box);
+    });
+  }
+
+  function runShuffle(){
+    const names=splitNames(elNames.value);
+    if(!names.length){ alert("Please paste at least one name."); return; }
+    const rng=getRng(elSeed.value);
+    const shuffled=shuffleArray(names,rng);
+
+    if(elArcade.checked && elSound.checked) whoosh(); // CHANGED: use whoosh
+    if(elArcade.checked) showMix(shuffled); else { elEmpty.style.display="none"; elMix.style.display="none"; }
+
+    setTimeout(()=>{
+      const k=parseInt(elGroupsCount.value||"1",10);
+      const groups=sliceIntoKContiguous(shuffled,k);
+      renderResults(names.length,groups);
+      if(elArcade.checked){
+        if(elSound.checked) coin();
+        launchConfetti(220);
+      }
+      elShuffle.textContent="Shuffle Again";
+    }, elArcade.checked ? 1100 : 0);
+  }
+
+  // Main event
+  elShuffle.addEventListener("click", runShuffle);
+</script>
+</body>
+</html>
