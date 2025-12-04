@@ -48,7 +48,7 @@
   .toggle{display:flex;gap:6px;align-items:center;font-size:12px;color:#a7b3d9}
   .muted{color:#9fb0d8;font-size:12px}
 
-  /* Grouping visuals (unchanged) */
+  /* Grouping visuals */
   .mix{position:relative;height:360px;overflow:hidden;border-radius:16px;background:#0b1333}
   .groups{display:grid;gap:18px}
   @media(min-width:700px){.groups{grid-template-columns:1fr 1fr}}
@@ -152,6 +152,7 @@
 
           <div class="btnbar">
             <button class="btn primary" id="spinBtn">Spin</button>
+            <button class="btn" id="shuffleWheel">Shuffle wheel</button>
             <button class="btn" id="resetHits">Reset hit counts</button>
             <button class="btn" id="restoreAll">Restore everyone</button>
             <button class="btn" id="refreshWheel">Refresh from names</button>
@@ -259,6 +260,7 @@
     if(!names.length){ alert("Please paste at least one name."); return; }
     const rng=getRng(elSeed.value);
     const a=names.slice(); const R=rng||Math.random;
+    for(let i=0;i<a.length-1;i--){}
     for(let i=a.length-1;i>0;i--){ const j=Math.floor(R()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
     const k=Math.max(1,Math.min(a.length,Math.floor(elGroupsCount.value||"1")));
     const size=Math.ceil(a.length/k); const groups=[]; for(let i=0;i<a.length;i+=size) groups.push(a.slice(i,i+size));
@@ -268,7 +270,8 @@
 
   /* ---------- WHEEL ---------- */
   const wheelCanvas=document.getElementById("wheelCanvas"); const wctx=wheelCanvas.getContext("2d");
-  const spinBtn=document.getElementById("spinBtn"); const winnerBanner=document.getElementById("winnerBanner");
+  const spinBtn=document.getElementById("spinBtn"); const shuffleWheelBtn=document.getElementById("shuffleWheel");
+  const winnerBanner=document.getElementById("winnerBanner");
   const hitLimitEl=document.getElementById("hitLimit"); const autoRemoveEl=document.getElementById("autoRemove"); const autoCountEl=document.getElementById("autoCount");
   const resetHitsBtn=document.getElementById("resetHits"); const restoreAllBtn=document.getElementById("restoreAll"); const refreshWheelBtn=document.getElementById("refreshWheel");
   const countHitBtn=document.getElementById("countHitBtn"); const undoHitBtn=document.getElementById("undoHitBtn"); const removeNowBtn=document.getElementById("removeNowBtn");
@@ -354,7 +357,7 @@
     const targetIndex=Math.floor((rng?rng():Math.random())*pool.length);
     const slice=Math.PI*2/pool.length;
 
-    // Top pointer fix: add +Math.PI (180°) so the chosen slice's MIDPOINT aligns under the TOP arrow
+    // Top pointer fix
     const midpointAngle = (POINTER_AT + Math.PI) - (targetIndex*slice + slice/2);
     const extraSpins = 3 + Math.floor(Math.random()*2);
     const start=performance.now(), duration=3200, startAngle=angle;
@@ -415,12 +418,34 @@
   function resetHitsAll(){ hits.clear(); lastCounted=null; autoCountApplied=false; undoHitBtn.disabled=true; drawWheel(); }
   function restoreAll(){ removed.clear(); resetHitsAll(); setWinner("Everyone restored"); }
 
+  /* ---------- Wheel shuffle button ---------- */
+  function shuffleWheelNames(){
+    if(spinning) return;
+    const names = splitNames(elNames.value);
+    if(!names.length){
+      alert("Please paste at least one name first.");
+      return;
+    }
+    const shuffled = shuffleArray(names, Math.random);
+    elNames.value = shuffled.join("\n");
+    highlightName = null;
+    lastPick = null;
+    setWinner("Wheel shuffled");
+    drawWheel();
+  }
+
   /* ---------- Bindings ---------- */
-  spinBtn.onclick=spin; countHitBtn.onclick=countHit; undoHitBtn.onclick=undoHit; removeNowBtn.onclick=removeNow;
+  spinBtn.onclick=spin;
+  shuffleWheelBtn.onclick=shuffleWheelNames;
+  countHitBtn.onclick=countHit;
+  undoHitBtn.onclick=undoHit;
+  removeNowBtn.onclick=removeNow;
   resetHitsBtn.onclick=()=>{ resetHitsAll(); setWinner("Hit counts reset"); };
-  restoreAllBtn.onclick=restoreAll; refreshWheelBtn.onclick=()=>{ drawWheel(); setWinner("Wheel refreshed from names"); };
+  restoreAllBtn.onclick=restoreAll;
+  refreshWheelBtn.onclick=()=>{ drawWheel(); setWinner("Wheel refreshed from names"); };
   hitLimitEl.onchange=()=>{ drawWheel(); if(lastPick) setWinner(winnerBanner.textContent, lastPick.name); };
   elNames.oninput=()=>{ drawWheel(); };
+  elPrint.onclick=()=>window.print();
 
   /* ---------- Init ---------- */
   drawWheel(); setWinner("Ready to spin");
