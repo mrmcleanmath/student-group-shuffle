@@ -113,8 +113,13 @@
         </div>
 
         <div id="mixStage" class="mix" style="display:none"></div>
-        <div id="results" style="display:none"><div class="muted" id="summary"></div><div class="groups" id="groups"></div></div>
-        <div id="empty" class="empty">Paste names on the left, choose your grouping, then click <strong>Shuffle & Group</strong>.</div>
+        <div id="results" style="display:none">
+          <div class="muted" id="summary"></div>
+          <div class="groups" id="groups"></div>
+        </div>
+        <div id="empty" class="empty">
+          Paste names on the left, choose your grouping, then click <strong>Shuffle & Group</strong>.
+        </div>
 
         <canvas id="confetti" width="10" height="10" class="no-print" style="position:absolute; inset:0; pointer-events:none; display:none;"></canvas>
       </div>
@@ -152,6 +157,7 @@
 
           <div class="btnbar">
             <button class="btn primary" id="spinBtn">Spin</button>
+            <!-- NEW: Wheel-only randomizer -->
             <button class="btn" id="shuffleWheel">Shuffle wheel</button>
             <button class="btn" id="resetHits">Reset hit counts</button>
             <button class="btn" id="restoreAll">Restore everyone</button>
@@ -173,25 +179,81 @@
 
 <script>
   /* ---------- Utilities ---------- */
-  function splitNames(raw){ if(!raw) return []; raw=raw.replace(/\u00A0/g," "); return raw.split(/\r\n|\n|\r|\u2028|\u2029|,|;|\t/g).map(s=>s.trim()).filter(Boolean); }
-  function mulberry32(a){return function(){var t=a+=0x6d2b79f5;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296;}}
-  function hashSeed(str){ if(str==null||str==="")return null; let h=1779033703^str.length; for(let i=0;i<str.length;i++){h=Math.imul(h^str.charCodeAt(i),3432918353); h=(h<<13)|(h>>>19);} return h>>>0; }
-  function getRng(seed){ const h=hashSeed(seed); return h==null ? Math.random : mulberry32(h); }
-  function shuffleArray(arr,rng){ const a=arr.slice(); const R=rng||Math.random; for(let i=a.length-1;i>0;i--){ const j=Math.floor(R()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+  function splitNames(raw){
+    if(!raw) return [];
+    raw = raw.replace(/\u00A0/g," ");
+    return raw
+      .split(/\r\n|\n|\r|\u2028|\u2029|,|;|\t/g)
+      .map(s=>s.trim())
+      .filter(Boolean);
+  }
+  function mulberry32(a){
+    return function(){
+      var t=a+=0x6d2b79f5;
+      t=Math.imul(t^(t>>>15),t|1);
+      t^=t+Math.imul(t^(t>>>7),t|61);
+      return((t^(t>>>14))>>>0)/4294967296;
+    }
+  }
+  function hashSeed(str){
+    if(str==null||str==="")return null;
+    let h=1779033703^str.length;
+    for(let i=0;i<str.length;i++){
+      h=Math.imul(h^str.charCodeAt(i),3432918353);
+      h=(h<<13)|(h>>>19);
+    }
+    return h>>>0;
+  }
+  function getRng(seed){
+    const h=hashSeed(seed);
+    return h==null ? Math.random : mulberry32(h);
+  }
+  function shuffleArray(arr,rng){
+    const a=arr.slice();
+    const R=rng||Math.random;
+    for(let i=a.length-1;i>0;i--){
+      const j=Math.floor(R()*(i+1));
+      [a[i],a[j]]=[a[j],a[i]];
+    }
+    return a;
+  }
 
   /* ---------- Confetti ---------- */
-  const confettiCanvas=document.getElementById("confetti"); const cctx=confettiCanvas.getContext("2d");
+  const confettiCanvas=document.getElementById("confetti");
+  const cctx=confettiCanvas.getContext("2d");
   let confettiTimer=null, confettiParts=[];
   function launchConfetti(n=180){
     const box=confettiCanvas.parentElement.getBoundingClientRect();
-    confettiCanvas.width=box.width; confettiCanvas.height=box.height;
+    confettiCanvas.width=box.width;
+    confettiCanvas.height=box.height;
     confettiCanvas.style.display="block";
     const colors=["#22d3ee","#7c3aed","#f59e0b","#22c55e","#60a5fa","#fb7185"];
-    confettiParts = Array.from({length:n},()=>({x:Math.random()*box.width,y:-10-Math.random()*120,w:6+Math.random()*7,h:10+Math.random()*14,c:colors[Math.floor(Math.random()*colors.length)],vx:-2+Math.random()*4,vy:2+Math.random()*5,r:Math.random()*360,vr:-6+Math.random()*12}));
+    confettiParts = Array.from({length:n},()=>({
+      x:Math.random()*box.width,
+      y:-10-Math.random()*120,
+      w:6+Math.random()*7,
+      h:10+Math.random()*14,
+      c:colors[Math.floor(Math.random()*colors.length)],
+      vx:-2+Math.random()*4,
+      vy:2+Math.random()*5,
+      r:Math.random()*360,
+      vr:-6+Math.random()*12
+    }));
     cancelAnimationFrame(confettiTimer);
     (function tick(){
       cctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height);
-      confettiParts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.06;p.r+=p.vr;cctx.save();cctx.translate(p.x,p.y);cctx.rotate(p.r*Math.PI/180);cctx.fillStyle=p.c;cctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);cctx.restore();});
+      confettiParts.forEach(p=>{
+        p.x+=p.vx;
+        p.y+=p.vy;
+        p.vy+=0.06;
+        p.r+=p.vr;
+        cctx.save();
+        cctx.translate(p.x,p.y);
+        cctx.rotate(p.r*Math.PI/180);
+        cctx.fillStyle=p.c;
+        cctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);
+        cctx.restore();
+      });
       confettiParts=confettiParts.filter(p=>p.y<confettiCanvas.height+50);
       if(confettiParts.length) confettiTimer=requestAnimationFrame(tick);
     })();
@@ -199,15 +261,46 @@
   }
 
   /* ---------- Sound ---------- */
-  let audioCtx=null; function ensureAudio(){ audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)(); return audioCtx;}
-  function whoosh(){ const ctx=ensureAudio(); const now=ctx.currentTime, dur=0.7; const buf=ctx.createBuffer(1,ctx.sampleRate*dur,ctx.sampleRate); const data=buf.getChannelData(0); for(let i=0;i<data.length;i++){data[i]=Math.random()*2-1;}
-    const src=ctx.createBufferSource(); src.buffer=buf; const f=ctx.createBiquadFilter(); f.type="bandpass"; f.frequency.setValueAtTime(300,now); f.frequency.exponentialRampToValueAtTime(2000,now+dur);
-    const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,now); g.gain.exponentialRampToValueAtTime(0.6,now+.08); g.gain.exponentialRampToValueAtTime(0.0001,now+dur);
-    src.connect(f); f.connect(g); g.connect(ctx.destination); src.start(now); src.stop(now+dur);
+  let audioCtx=null;
+  function ensureAudio(){
+    audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+    return audioCtx;
   }
-  function coin(){ const ctx=ensureAudio(); const n=ctx.currentTime;
-    function b(f,t,l,v){ const o=ctx.createOscillator(), g=ctx.createGain(); o.type="sine"; o.frequency.value=f; o.connect(g); g.connect(ctx.destination); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(v,t+.01); g.gain.exponentialRampToValueAtTime(0.0001,t+l); o.start(t); o.stop(t+l); }
-    b(880,n,.15,.25); b(1320,n+.07,.15,.22); b(1760,n+.14,.13,.20);
+  function whoosh(){
+    const ctx=ensureAudio();
+    const now=ctx.currentTime, dur=0.7;
+    const buf=ctx.createBuffer(1,ctx.sampleRate*dur,ctx.sampleRate);
+    const data=buf.getChannelData(0);
+    for(let i=0;i<data.length;i++){data[i]=Math.random()*2-1;}
+    const src=ctx.createBufferSource();
+    src.buffer=buf;
+    const f=ctx.createBiquadFilter();
+    f.type="bandpass";
+    f.frequency.setValueAtTime(300,now);
+    f.frequency.exponentialRampToValueAtTime(2000,now+dur);
+    const g=ctx.createGain();
+    g.gain.setValueAtTime(0.0001,now);
+    g.gain.exponentialRampToValueAtTime(0.6,now+.08);
+    g.gain.exponentialRampToValueAtTime(0.0001,now+dur);
+    src.connect(f); f.connect(g); g.connect(ctx.destination);
+    src.start(now); src.stop(now+dur);
+  }
+  function coin(){
+    const ctx=ensureAudio();
+    const n=ctx.currentTime;
+    function b(f,t,l,v){
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.type="sine";
+      o.frequency.value=f;
+      o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(0,t);
+      g.gain.linearRampToValueAtTime(v,t+.01);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+l);
+      o.start(t); o.stop(t+l);
+    }
+    b(880,n,.15,.25);
+    b(1320,n+.07,.15,.22);
+    b(1760,n+.14,.13,.20);
   }
 
   /* ---------- DOM refs ---------- */
@@ -228,57 +321,100 @@
 
   /* ---------- Quick chips ---------- */
   [2,3,4,5,6,7,8,9,10].forEach(n=>{
-    const b=document.createElement("button"); b.className="chip"; b.textContent=n;
+    const b=document.createElement("button");
+    b.className="chip";
+    b.textContent=n;
     b.onclick=()=>{elGroupsCount.value=n};
     elGroupsCountQuick.appendChild(b);
   });
 
   /* ---------- Demo / Clear ---------- */
-  elDemo.onclick=()=>{ elNames.value=["Sam","Bobby","Kristen","Tanaja","Jennifer","Gabby","Prince","Walter","Brian","Larry","Craig","John","Ben","Trolus","Shannon"].join("\n"); drawWheel(); };
-  elClear.onclick=()=>{ elNames.value=""; elSeed.value=""; elResults.style.display="none"; elEmpty.style.display="";
-    resetHitsAll(); removed.clear(); lastPick=null; drawWheel(); setWinner("Ready to spin");
+  elDemo.onclick=()=>{
+    elNames.value=[
+      "Sam","Bobby","Kristen","Tanaja","Jennifer","Gabby","Prince",
+      "Walter","Brian","Larry","Craig","John","Ben","Trolus","Shannon"
+    ].join("\n");
+    drawWheel();
+  };
+  elClear.onclick=()=>{
+    elNames.value="";
+    elSeed.value="";
+    elResults.style.display="none";
+    elEmpty.style.display="";
+    resetHitsAll();
+    removed.clear();
+    lastPick=null;
+    drawWheel();
+    setWinner("Ready to spin");
   };
   elPrint.onclick=()=>window.print();
 
   /* ---------- Grouping ---------- */
   function renderResults(totalCount,groups){
-    elResults.style.display=""; elEmpty.style.display="none";
+    elResults.style.display="";
+    elEmpty.style.display="none";
     const sizes=groups.map(g=>g.length);
-    const min=sizes.length?Math.min(...sizes):0, max=sizes.length?Math.max(...sizes):0;
+    const min=sizes.length?Math.min(...sizes):0;
+    const max=sizes.length?Math.max(...sizes):0;
     elSummary.textContent=`${totalCount} students → ${groups.length} groups (sizes ${min}-${max})`;
     elGroupsOut.innerHTML="";
     groups.forEach((g,i)=>{
-      const d=document.createElement("div"); d.className="group";
+      const d=document.createElement("div");
+      d.className="group";
       d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center">
         <h3 style="margin:0">GROUP ${i+1}</h3><span class="badge">${g.length}</span></div>
         <ol style="margin:8px 0 0;padding-left:22px">${g.map(n=>`<li>${n}</li>`).join("")}</ol>`;
       elGroupsOut.appendChild(d);
     });
   }
+
   elShuffle.onclick=()=>{
     const names=splitNames(elNames.value);
-    if(!names.length){ alert("Please paste at least one name."); return; }
+    if(!names.length){
+      alert("Please paste at least one name.");
+      return;
+    }
     const rng=getRng(elSeed.value);
-    const a=names.slice(); const R=rng||Math.random;
-    for(let i=0;i<a.length-1;i--){}
-    for(let i=a.length-1;i>0;i--){ const j=Math.floor(R()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
-    const k=Math.max(1,Math.min(a.length,Math.floor(elGroupsCount.value||"1")));
-    const size=Math.ceil(a.length/k); const groups=[]; for(let i=0;i<a.length;i+=size) groups.push(a.slice(i,i+size));
-    if(elArcade.checked&&elSound.checked) whoosh();
-    setTimeout(()=>{ renderResults(names.length,groups); if(elArcade.checked){ if(elSound.checked) coin(); launchConfetti(220);} }, elArcade.checked?1100:0);
+    const shuffled = shuffleArray(names, rng);
+    const k=Math.max(1,Math.min(shuffled.length,Math.floor(elGroupsCount.value||"1")));
+    const size=Math.ceil(shuffled.length/k);
+    const groups=[];
+    for(let i=0;i<shuffled.length;i+=size) groups.push(shuffled.slice(i,i+size));
+    if(elArcade.checked && elSound.checked) whoosh();
+    setTimeout(()=>{
+      renderResults(names.length,groups);
+      if(elArcade.checked){
+        if(elSound.checked) coin();
+        launchConfetti(220);
+      }
+    }, elArcade.checked?1100:0);
   };
 
   /* ---------- WHEEL ---------- */
-  const wheelCanvas=document.getElementById("wheelCanvas"); const wctx=wheelCanvas.getContext("2d");
-  const spinBtn=document.getElementById("spinBtn"); const shuffleWheelBtn=document.getElementById("shuffleWheel");
+  const wheelCanvas=document.getElementById("wheelCanvas");
+  const wctx=wheelCanvas.getContext("2d");
+  const spinBtn=document.getElementById("spinBtn");
+  const shuffleWheelBtn=document.getElementById("shuffleWheel"); // NEW
   const winnerBanner=document.getElementById("winnerBanner");
-  const hitLimitEl=document.getElementById("hitLimit"); const autoRemoveEl=document.getElementById("autoRemove"); const autoCountEl=document.getElementById("autoCount");
-  const resetHitsBtn=document.getElementById("resetHits"); const restoreAllBtn=document.getElementById("restoreAll"); const refreshWheelBtn=document.getElementById("refreshWheel");
-  const countHitBtn=document.getElementById("countHitBtn"); const undoHitBtn=document.getElementById("undoHitBtn"); const removeNowBtn=document.getElementById("removeNowBtn");
-  const poolInfo=document.getElementById("poolInfo"); const winnerPop=document.getElementById("winnerPop"); const winnerChip=document.getElementById("winnerChip");
+  const hitLimitEl=document.getElementById("hitLimit");
+  const autoRemoveEl=document.getElementById("autoRemove");
+  const autoCountEl=document.getElementById("autoCount");
+  const resetHitsBtn=document.getElementById("resetHits");
+  const restoreAllBtn=document.getElementById("restoreAll");
+  const refreshWheelBtn=document.getElementById("refreshWheel");
+  const countHitBtn=document.getElementById("countHitBtn");
+  const undoHitBtn=document.getElementById("undoHitBtn");
+  const removeNowBtn=document.getElementById("removeNowBtn");
+  const poolInfo=document.getElementById("poolInfo");
+  const winnerPop=document.getElementById("winnerPop");
+  const winnerChip=document.getElementById("winnerChip");
 
-  const palette=["#22d3ee","#7c3aed","#f59e0b","#22c55e","#60a5fa","#fb7185","#a78bfa","#34d399","#fca5a5","#93c5fd"];
-  const POINTER_AT = Math.PI/2; // pointer triangle is visually at TOP
+  const palette=[
+    "#22d3ee","#7c3aed","#f59e0b","#22c55e",
+    "#60a5fa","#fb7185","#a78bfa","#34d399",
+    "#fca5a5","#93c5fd"
+  ];
+  const POINTER_AT = Math.PI/2; // pointer visually at top
 
   let hits=new Map();      // name -> counted hits
   let removed=new Set();   // names removed (manual or 0 remaining)
@@ -290,53 +426,106 @@
   function currentNames(){ return splitNames(elNames.value); }
   function maxHits(){ return parseInt(hitLimitEl.value,10)||3; }
   function remainingFor(name){ return Math.max(0, maxHits() - (hits.get(name)||0)); }
-  function activePoolUnlocked(){ const names=currentNames(); return names.filter(n=>!removed.has(n) && remainingFor(n)>0); }
+  function activePoolUnlocked(){
+    const names=currentNames();
+    return names.filter(n=>!removed.has(n) && remainingFor(n)>0);
+  }
   function activePool(){ return spinPoolSnapshot ? spinPoolSnapshot.slice() : activePoolUnlocked(); }
 
   function setWinner(text,name=null){
     winnerBanner.textContent=text;
-    if(name){ const rem=remainingFor(name); const pill=document.createElement("span"); pill.className="hitpill"; pill.textContent=`Remaining: ${rem}`; winnerBanner.appendChild(pill); }
+    if(name){
+      const rem=remainingFor(name);
+      const pill=document.createElement("span");
+      pill.className="hitpill";
+      pill.textContent=`Remaining: ${rem}`;
+      winnerBanner.appendChild(pill);
+    }
   }
-  function showCenterChip(name){ winnerChip.textContent=name; winnerPop.classList.add("show"); setTimeout(()=>winnerPop.classList.remove("show"), 900); }
+  function showCenterChip(name){
+    winnerChip.textContent=name;
+    winnerPop.classList.add("show");
+    setTimeout(()=>winnerPop.classList.remove("show"), 900);
+  }
 
   function drawWheel(){
     const pool=activePool();
     poolInfo.textContent=`Pool: ${pool.length} active`;
-    const cx=wheelCanvas.width/2, cy=wheelCanvas.height/2, r=Math.min(cx,cy)-6;
+    const cx=wheelCanvas.width/2, cy=wheelCanvas.height/2;
+    const r=Math.min(cx,cy)-6;
     wctx.clearRect(0,0,wheelCanvas.width,wheelCanvas.height);
 
     if(pool.length===0){
-      wctx.beginPath(); wctx.arc(cx,cy,r,0,Math.PI*2); wctx.fillStyle="#0f1a44"; wctx.fill();
+      wctx.beginPath();
+      wctx.arc(cx,cy,r,0,Math.PI*2);
+      wctx.fillStyle="#0f1a44"; wctx.fill();
       wctx.strokeStyle="#2c3a6f"; wctx.lineWidth=2; wctx.stroke();
-      wctx.fillStyle="#cbd5ff"; wctx.font="bold 22px system-ui,-apple-system,Segoe UI,Roboto,Arial";
-      wctx.textAlign="center"; wctx.textBaseline="middle"; wctx.fillText("No active names",cx,cy);
-      countHitBtn.disabled=undoHitBtn.disabled=removeNowBtn.disabled=true; return;
+      wctx.fillStyle="#cbd5ff";
+      wctx.font="bold 22px system-ui,-apple-system,Segoe UI,Roboto,Arial";
+      wctx.textAlign="center"; wctx.textBaseline="middle";
+      wctx.fillText("No active names",cx,cy);
+      countHitBtn.disabled=undoHitBtn.disabled=removeNowBtn.disabled=true;
+      return;
     }
 
-    const slice=Math.PI*2/pool.length, dimOthers=!!highlightName;
+    const slice=Math.PI*2/pool.length;
+    const dimOthers=!!highlightName;
 
     for(let i=0;i<pool.length;i++){
-      const start=angle+i*slice, end=start+slice, name=pool[i], rem=remainingFor(name), isW=highlightName && (name===highlightName);
-      // wedge
-      wctx.beginPath(); wctx.moveTo(cx,cy); wctx.arc(cx,cy,r,start,end); wctx.closePath();
-      const fill=palette[i%palette.length]; wctx.fillStyle=dimOthers&&!isW?fill+"E6":fill; wctx.fill();
-      wctx.strokeStyle=isW?"#fff":"rgba(0,0,0,.3)"; wctx.lineWidth=isW?3:1; wctx.stroke();
+      const start=angle+i*slice;
+      const end=start+slice;
+      const name=pool[i];
+      const rem=remainingFor(name);
+      const isW=highlightName && (name===highlightName);
 
-      // label (name + round badge)
-      const mid=start+slice/2, lr=r*0.72, tx=cx+Math.cos(mid)*lr, ty=cy+Math.sin(mid)*lr;
-      wctx.save(); wctx.translate(tx,ty); wctx.rotate(mid+Math.PI/2); wctx.textAlign="center"; wctx.textBaseline="middle";
-      wctx.fillStyle="#0b1026"; wctx.font="bold 16px system-ui,-apple-system,Segoe UI,Roboto,Arial";
+      // wedge
+      wctx.beginPath();
+      wctx.moveTo(cx,cy);
+      wctx.arc(cx,cy,r,start,end);
+      wctx.closePath();
+      const fill=palette[i%palette.length];
+      wctx.fillStyle=dimOthers&&!isW?fill+"E6":fill;
+      wctx.fill();
+      wctx.strokeStyle=isW?"#fff":"rgba(0,0,0,.3)";
+      wctx.lineWidth=isW?3:1;
+      wctx.stroke();
+
+      // label
+      const mid=start+slice/2;
+      const lr=r*0.72;
+      const tx=cx+Math.cos(mid)*lr;
+      const ty=cy+Math.sin(mid)*lr;
+      wctx.save();
+      wctx.translate(tx,ty);
+      wctx.rotate(mid+Math.PI/2);
+      wctx.textAlign="center";
+      wctx.textBaseline="middle";
+      wctx.fillStyle="#0b1026";
+      wctx.font="bold 16px system-ui,-apple-system,Segoe UI,Roboto,Arial";
       if(pool.length>16) wctx.font="bold 12px system-ui,-apple-system,Segoe UI,Roboto,Arial";
       if(pool.length>28) wctx.font="bold 10px system-ui,-apple-system,Segoe UI,Roboto,Arial";
       wctx.fillText(name,0,-8);
-      wctx.beginPath(); wctx.arc(0,12,14,0,Math.PI*2); wctx.fillStyle=isW?"rgba(255,255,255,1)":"rgba(255,255,255,.9)"; wctx.fill();
-      wctx.lineWidth=2; wctx.strokeStyle="rgba(0,0,0,.15)"; wctx.stroke();
-      wctx.fillStyle="#0b1026"; wctx.font="900 14px system-ui,-apple-system,Segoe UI,Roboto,Arial"; wctx.fillText(String(rem),0,12.5);
+
+      // hit circle
+      wctx.beginPath();
+      wctx.arc(0,12,14,0,Math.PI*2);
+      wctx.fillStyle=isW?"rgba(255,255,255,1)":"rgba(255,255,255,.9)";
+      wctx.fill();
+      wctx.lineWidth=2;
+      wctx.strokeStyle="rgba(0,0,0,.15)";
+      wctx.stroke();
+      wctx.fillStyle="#0b1026";
+      wctx.font="900 14px system-ui,-apple-system,Segoe UI,Roboto,Arial";
+      wctx.fillText(String(rem),0,12.5);
       wctx.restore();
     }
 
     // rim
-    wctx.beginPath(); wctx.arc(cx,cy,r,0,Math.PI*2); wctx.lineWidth=6; wctx.strokeStyle="#0f1a44"; wctx.stroke();
+    wctx.beginPath();
+    wctx.arc(cx,cy,r,0,Math.PI*2);
+    wctx.lineWidth=6;
+    wctx.strokeStyle="#0f1a44";
+    wctx.stroke();
   }
 
   function lockSpinPool(){ spinPoolSnapshot = activePoolUnlocked(); }
@@ -344,20 +533,29 @@
 
   function spin(){
     const pool = activePoolUnlocked();
-    if(pool.length===0){ alert("No active names. Add names, or restore everyone."); return; }
+    if(pool.length===0){
+      alert("No active names. Add names, or restore everyone.");
+      return;
+    }
     if(spinning) return;
 
-    lockSpinPool(); autoCountApplied=false; highlightName=null; drawWheel();
+    lockSpinPool();
+    autoCountApplied=false;
+    highlightName=null;
+    drawWheel();
     if(elArcade.checked && elSound.checked) whoosh();
-    setWinner("Spinning..."); winnerPop.classList.remove("show");
+    setWinner("Spinning...");
+    winnerPop.classList.remove("show");
 
-    spinning=true; countHitBtn.disabled=true; undoHitBtn.disabled=true; removeNowBtn.disabled=true;
+    spinning=true;
+    countHitBtn.disabled=true;
+    undoHitBtn.disabled=true;
+    removeNowBtn.disabled=true;
 
     const rng=getRng(elSeed.value);
     const targetIndex=Math.floor((rng?rng():Math.random())*pool.length);
     const slice=Math.PI*2/pool.length;
 
-    // Top pointer fix
     const midpointAngle = (POINTER_AT + Math.PI) - (targetIndex*slice + slice/2);
     const extraSpins = 3 + Math.floor(Math.random()*2);
     const start=performance.now(), duration=3200, startAngle=angle;
@@ -368,20 +566,29 @@
       const t=Math.min(1,(now-start)/duration);
       angle = startAngle + (target - startAngle) * ease(t);
       drawWheel();
-      if(t<1){ requestAnimationFrame(frame); }
-      else{
+      if(t<1){
+        requestAnimationFrame(frame);
+      } else {
         spinning=false;
-        angle = ((midpointAngle % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI); // hard snap
+        angle = ((midpointAngle % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI); // snap
         const name = pool[targetIndex];
         lastPick = { name, indexAtSpin: targetIndex, poolSnapshot: pool.slice() };
 
-        if(elArcade.checked){ if(elSound.checked) coin(); launchConfetti(140); }
-        highlightName = name; drawWheel(); showCenterChip(name);
+        if(elArcade.checked){
+          if(elSound.checked) coin();
+          launchConfetti(140);
+        }
+        highlightName = name;
+        drawWheel();
+        showCenterChip(name);
 
-        if(autoCountEl.checked){ applyWinnerHit(name); }
-        else{
+        if(autoCountEl.checked){
+          applyWinnerHit(name);
+        } else {
           setWinner(name,name);
-          countHitBtn.disabled=false; undoHitBtn.disabled=lastCounted?false:true; removeNowBtn.disabled=false;
+          countHitBtn.disabled=false;
+          undoHitBtn.disabled=lastCounted?false:true;
+          removeNowBtn.disabled=false;
         }
         unlockSpinPool();
       }
@@ -389,54 +596,81 @@
   }
 
   function applyWinnerHit(name){
-    if(autoCountApplied) return; // guard
+    if(autoCountApplied) return;
     autoCountApplied = true;
-
     const prev = hits.get(name)||0;
     hits.set(name, prev+1);
     lastCounted = { name };
-
     const rem = remainingFor(name);
-    if(autoRemoveEl.checked && rem<=0){ removed.add(name); setWinner(`${name} reached 0 and was removed.`, name); }
-    else{ setWinner(`${name} counted.`, name); }
-
+    if(autoRemoveEl.checked && rem<=0){
+      removed.add(name);
+      setWinner(`${name} reached 0 and was removed.`, name);
+    } else {
+      setWinner(`${name} counted.`, name);
+    }
     drawWheel();
-    undoHitBtn.disabled=false; countHitBtn.disabled=true; removeNowBtn.disabled=false;
+    undoHitBtn.disabled=false;
+    countHitBtn.disabled=true;
+    removeNowBtn.disabled=false;
   }
 
-  function countHit(){ if(!lastPick) return; applyWinnerHit(lastPick.name); }
+  function countHit(){
+    if(!lastPick) return;
+    applyWinnerHit(lastPick.name);
+  }
+
   function undoHit(){
     if(!lastCounted) return;
-    const {name}=lastCounted; const h=hits.get(name)||0; if(h>0) hits.set(name,h-1);
+    const {name}=lastCounted;
+    const h=hits.get(name)||0;
+    if(h>0) hits.set(name,h-1);
     removed.delete(name);
     setWinner(`Undid last hit for ${name}.`, name);
-    lastCounted=null; autoCountApplied=false;
-    drawWheel(); undoHitBtn.disabled=true;
+    lastCounted=null;
+    autoCountApplied=false;
+    drawWheel();
+    undoHitBtn.disabled=true;
   }
-  function removeNow(){ if(!lastPick) return; removed.add(lastPick.name); setWinner(`${lastPick.name} removed.`, lastPick.name); drawWheel(); }
 
-  function resetHitsAll(){ hits.clear(); lastCounted=null; autoCountApplied=false; undoHitBtn.disabled=true; drawWheel(); }
-  function restoreAll(){ removed.clear(); resetHitsAll(); setWinner("Everyone restored"); }
+  function removeNow(){
+    if(!lastPick) return;
+    removed.add(lastPick.name);
+    setWinner(`${lastPick.name} removed.`, lastPick.name);
+    drawWheel();
+  }
 
-  /* ---------- Wheel shuffle button ---------- */
-  function shuffleWheelNames(){
-    if(spinning) return;
+  function resetHitsAll(){
+    hits.clear();
+    lastCounted=null;
+    autoCountApplied=false;
+    undoHitBtn.disabled=true;
+    drawWheel();
+  }
+
+  function restoreAll(){
+    removed.clear();
+    resetHitsAll();
+    setWinner("Everyone restored");
+  }
+
+  /* ---------- NEW: shuffle names for the wheel ---------- */
+  function shuffleWheelOrder(){
     const names = splitNames(elNames.value);
     if(!names.length){
-      alert("Please paste at least one name first.");
+      alert("Please paste at least one name to shuffle.");
       return;
     }
-    const shuffled = shuffleArray(names, Math.random);
+    const rng = getRng(elSeed.value);
+    const shuffled = shuffleArray(names, rng);
     elNames.value = shuffled.join("\n");
     highlightName = null;
-    lastPick = null;
-    setWinner("Wheel shuffled");
     drawWheel();
+    setWinner("Wheel shuffled");
   }
 
   /* ---------- Bindings ---------- */
   spinBtn.onclick=spin;
-  shuffleWheelBtn.onclick=shuffleWheelNames;
+  shuffleWheelBtn.onclick = shuffleWheelOrder;  // wheel-only shuffle
   countHitBtn.onclick=countHit;
   undoHitBtn.onclick=undoHit;
   removeNowBtn.onclick=removeNow;
@@ -445,10 +679,10 @@
   refreshWheelBtn.onclick=()=>{ drawWheel(); setWinner("Wheel refreshed from names"); };
   hitLimitEl.onchange=()=>{ drawWheel(); if(lastPick) setWinner(winnerBanner.textContent, lastPick.name); };
   elNames.oninput=()=>{ drawWheel(); };
-  elPrint.onclick=()=>window.print();
 
   /* ---------- Init ---------- */
-  drawWheel(); setWinner("Ready to spin");
+  drawWheel();
+  setWinner("Ready to spin");
 </script>
 </body>
 </html>
