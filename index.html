@@ -37,14 +37,6 @@
   textarea{width:100%;height:240px;padding:10px;border:1px solid #2c3a6f;border-radius:12px;background:#0a1638;color:#e6ecff}
   input,select{width:100%;padding:8px 10px;border:1px solid #2c3a6f;border-radius:12px;background:#0a1638;color:#e6ecff}
   textarea:focus,input:focus,select:focus{outline:none;border-color:#5b94ff;box-shadow:0 0 0 2px rgba(91,148,255,.25)}
-
-  /* --- NEW: ensure dropdown options are readable --- */
-  select{ color:#e6ecff; }
-  select option{
-    color:#e6ecff;
-    background:#0a1638;
-  }
-
   label{font-size:13px;font-weight:700;display:block;margin:10px 0 6px;color:#c9d4ff}
   .btn{display:inline-flex;gap:8px;align-items:center;padding:12px 16px;border-radius:12px;border:1px solid #2c3a6f;background:#0f1a44;color:#e6ecff;font-weight:700;cursor:pointer;transition:transform .06s ease,filter .2s ease}
   .btn.primary{background:radial-gradient(100% 100% at 50% 0%,#7c3aed,#53389e 60%,#312e81 100%);border-color:transparent;box-shadow:0 0 0 2px rgba(124,58,237,.3),0 10px 30px rgba(124,58,237,.45)}
@@ -52,20 +44,7 @@
   .btn:hover{filter:brightness(1.05)} .btn:active{transform:translateY(1px)}
   .btnbar{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
   .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-
-  /* --- UPDATED: make group-count chips stand out more --- */
-  .chip{
-    padding:4px 10px;border-radius:999px;border:1px solid #2c3a6f;background:#0f1a44;
-    font-size:12px;cursor:pointer;
-    color:#e6ecff;
-    font-weight:900;
-    text-shadow:0 0 10px rgba(34,211,238,.35);
-  }
-  .chip:hover{
-    filter:brightness(1.1);
-    box-shadow:0 0 0 2px rgba(34,211,238,.18), 0 8px 22px rgba(0,0,0,.25);
-  }
-
+  .chip{padding:4px 10px;border-radius:999px;border:1px solid #2c3a6f;background:#0f1a44;font-size:12px;cursor:pointer}
   .toggle{display:flex;gap:6px;align-items:center;font-size:12px;color:#a7b3d9}
   .muted{color:#9fb0d8;font-size:12px}
 
@@ -178,6 +157,7 @@
 
           <div class="btnbar">
             <button class="btn primary" id="spinBtn">Spin</button>
+            <!-- NEW: Wheel-only randomizer -->
             <button class="btn" id="shuffleWheel">Shuffle wheel</button>
             <button class="btn" id="resetHits">Reset hit counts</button>
             <button class="btn" id="restoreAll">Restore everyone</button>
@@ -281,24 +261,29 @@
   }
 
   /* ---------- Sound ---------- */
-  const SPIN_SFX_URL = "wheel-spin.mp3"; // <-- put your attached mp3 next to this HTML and name it wheel-spin.mp3
-  const spinSfx = new Audio(SPIN_SFX_URL);
-  spinSfx.preload = "auto";
-  spinSfx.volume = 0.7;
-
-  function playSpinSfx(){
-    try{
-      spinSfx.pause();
-      spinSfx.currentTime = 0;
-      spinSfx.play().catch(()=>{});
-    }catch(e){}
-  }
-
-  // keep the "winner coin" from WebAudio
   let audioCtx=null;
   function ensureAudio(){
     audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
     return audioCtx;
+  }
+  function whoosh(){
+    const ctx=ensureAudio();
+    const now=ctx.currentTime, dur=0.7;
+    const buf=ctx.createBuffer(1,ctx.sampleRate*dur,ctx.sampleRate);
+    const data=buf.getChannelData(0);
+    for(let i=0;i<data.length;i++){data[i]=Math.random()*2-1;}
+    const src=ctx.createBufferSource();
+    src.buffer=buf;
+    const f=ctx.createBiquadFilter();
+    f.type="bandpass";
+    f.frequency.setValueAtTime(300,now);
+    f.frequency.exponentialRampToValueAtTime(2000,now+dur);
+    const g=ctx.createGain();
+    g.gain.setValueAtTime(0.0001,now);
+    g.gain.exponentialRampToValueAtTime(0.6,now+.08);
+    g.gain.exponentialRampToValueAtTime(0.0001,now+dur);
+    src.connect(f); f.connect(g); g.connect(ctx.destination);
+    src.start(now); src.stop(now+dur);
   }
   function coin(){
     const ctx=ensureAudio();
@@ -395,9 +380,7 @@
     const size=Math.ceil(shuffled.length/k);
     const groups=[];
     for(let i=0;i<shuffled.length;i+=size) groups.push(shuffled.slice(i,i+size));
-
-    if(elArcade.checked && elSound.checked) playSpinSfx();
-
+    if(elArcade.checked && elSound.checked) whoosh();
     setTimeout(()=>{
       renderResults(names.length,groups);
       if(elArcade.checked){
@@ -411,7 +394,7 @@
   const wheelCanvas=document.getElementById("wheelCanvas");
   const wctx=wheelCanvas.getContext("2d");
   const spinBtn=document.getElementById("spinBtn");
-  const shuffleWheelBtn=document.getElementById("shuffleWheel");
+  const shuffleWheelBtn=document.getElementById("shuffleWheel"); // NEW
   const winnerBanner=document.getElementById("winnerBanner");
   const hitLimitEl=document.getElementById("hitLimit");
   const autoRemoveEl=document.getElementById("autoRemove");
@@ -433,12 +416,12 @@
   ];
   const POINTER_AT = Math.PI/2; // pointer visually at top
 
-  let hits=new Map();
-  let removed=new Set();
+  let hits=new Map();      // name -> counted hits
+  let removed=new Set();   // names removed (manual or 0 remaining)
   let spinning=false, angle=0;
   let lastPick=null, lastCounted=null, highlightName=null;
-  let spinPoolSnapshot=null;
-  let autoCountApplied=false;
+  let spinPoolSnapshot=null;     // lock pool during spin
+  let autoCountApplied=false;    // guard against double count
 
   function currentNames(){ return splitNames(elNames.value); }
   function maxHits(){ return parseInt(hitLimitEl.value,10)||3; }
@@ -495,6 +478,7 @@
       const rem=remainingFor(name);
       const isW=highlightName && (name===highlightName);
 
+      // wedge
       wctx.beginPath();
       wctx.moveTo(cx,cy);
       wctx.arc(cx,cy,r,start,end);
@@ -506,6 +490,7 @@
       wctx.lineWidth=isW?3:1;
       wctx.stroke();
 
+      // label
       const mid=start+slice/2;
       const lr=r*0.72;
       const tx=cx+Math.cos(mid)*lr;
@@ -521,6 +506,7 @@
       if(pool.length>28) wctx.font="bold 10px system-ui,-apple-system,Segoe UI,Roboto,Arial";
       wctx.fillText(name,0,-8);
 
+      // hit circle
       wctx.beginPath();
       wctx.arc(0,12,14,0,Math.PI*2);
       wctx.fillStyle=isW?"rgba(255,255,255,1)":"rgba(255,255,255,.9)";
@@ -534,6 +520,7 @@
       wctx.restore();
     }
 
+    // rim
     wctx.beginPath();
     wctx.arc(cx,cy,r,0,Math.PI*2);
     wctx.lineWidth=6;
@@ -556,9 +543,7 @@
     autoCountApplied=false;
     highlightName=null;
     drawWheel();
-
-    if(elArcade.checked && elSound.checked) playSpinSfx();
-
+    if(elArcade.checked && elSound.checked) whoosh();
     setWinner("Spinning...");
     winnerPop.classList.remove("show");
 
@@ -585,7 +570,7 @@
         requestAnimationFrame(frame);
       } else {
         spinning=false;
-        angle = ((midpointAngle % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI);
+        angle = ((midpointAngle % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI); // snap
         const name = pool[targetIndex];
         lastPick = { name, indexAtSpin: targetIndex, poolSnapshot: pool.slice() };
 
@@ -668,6 +653,7 @@
     setWinner("Everyone restored");
   }
 
+  /* ---------- NEW: shuffle names for the wheel ---------- */
   function shuffleWheelOrder(){
     const names = splitNames(elNames.value);
     if(!names.length){
@@ -684,7 +670,7 @@
 
   /* ---------- Bindings ---------- */
   spinBtn.onclick=spin;
-  shuffleWheelBtn.onclick = shuffleWheelOrder;
+  shuffleWheelBtn.onclick = shuffleWheelOrder;  // wheel-only shuffle
   countHitBtn.onclick=countHit;
   undoHitBtn.onclick=undoHit;
   removeNowBtn.onclick=removeNow;
